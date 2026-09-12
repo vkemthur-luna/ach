@@ -1121,6 +1121,16 @@ func (batch *Batch) ValidAmountForCodes(entry *EntryDetail) error {
 			}
 
 			switch batch.Header.StandardEntryClassCode {
+			case CCD, CTX:
+				// NACHA permits Zero-Dollar (Non-Monetary) Entries for CCD and CTX to a
+				// Non-Consumer Account, carrying remittance data in an Addenda Record
+				// (Nacha Operating Rules, subsection 8.122). Such entries use the
+				// zero-dollar-with-remittance Transaction Codes and are valid at $0.
+				switch entry.TransactionCode {
+				case CheckingZeroDollarRemittanceCredit, CheckingZeroDollarRemittanceDebit,
+					SavingsZeroDollarRemittanceCredit, SavingsZeroDollarRemittanceDebit:
+					return nil
+				}
 			case ACK, ATX:
 				if entry.TransactionCode == CheckingZeroDollarRemittanceCredit || entry.TransactionCode == SavingsZeroDollarRemittanceCredit {
 					return nil

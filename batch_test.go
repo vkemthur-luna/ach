@@ -1182,6 +1182,44 @@ func TestBatch_AllowInvalidAmounts(t *testing.T) {
 	require.NoError(t, b.Validate())
 }
 
+func TestBatch_CCDCTXZeroDollarRemittance(t *testing.T) {
+	// Nacha Operating Rules subsection 8.122 permits Zero-Dollar (Non-Monetary)
+	// Entries for CCD and CTX to a Non-Consumer Account. They carry remittance
+	// data in an Addenda Record and use the zero-dollar-with-remittance
+	// Transaction Codes (24/29 checking, 34/39 savings), so a $0 Amount is valid.
+	t.Run("CCD credit", func(t *testing.T) {
+		b := mockBatchCCD(t)
+		b.Header.ServiceClassCode = MixedDebitsAndCredits
+		b.Entries[0].TransactionCode = CheckingZeroDollarRemittanceCredit
+		b.Entries[0].Amount = 0
+		require.NoError(t, b.Create())
+	})
+
+	t.Run("CCD debit", func(t *testing.T) {
+		b := mockBatchCCD(t)
+		b.Header.ServiceClassCode = MixedDebitsAndCredits
+		b.Entries[0].TransactionCode = CheckingZeroDollarRemittanceDebit
+		b.Entries[0].Amount = 0
+		require.NoError(t, b.Create())
+	})
+
+	t.Run("CTX credit", func(t *testing.T) {
+		b := mockBatchCTX(t)
+		b.Header.ServiceClassCode = MixedDebitsAndCredits
+		b.Entries[0].TransactionCode = CheckingZeroDollarRemittanceCredit
+		b.Entries[0].Amount = 0
+		require.NoError(t, b.Create())
+	})
+
+	t.Run("live Transaction Code still rejects zero amount", func(t *testing.T) {
+		b := mockBatchCCD(t)
+		b.Header.ServiceClassCode = MixedDebitsAndCredits
+		b.Entries[0].TransactionCode = CheckingCredit
+		b.Entries[0].Amount = 0
+		require.ErrorContains(t, b.Create(), ErrBatchAmountZero.Error())
+	})
+}
+
 func TestBatch__Equal(t *testing.T) {
 	testFile := func(t *testing.T) *File {
 		t.Helper()
